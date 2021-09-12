@@ -1,14 +1,14 @@
 # **通过TortoiseGet访问GitHub**
 
-1. 下载并安装Git
+1. ## 下载并安装Git
 
    https://git-scm.com/download/win
 
-2. 安装TortoiseGit和语言包
+2. ## 安装TortoiseGit和语言包
 
    https://tortoisegit.org/download/
 
-3. 配置TortoiseGit
+3. ## 配置TortoiseGit
 
    1）配置用户名和密码
 
@@ -24,7 +24,7 @@
 
    ​	然后应用并确认
 
-4. 生成秘钥
+4. ## 生成秘钥
 
    打开Git命令行工具
 
@@ -34,7 +34,7 @@
 
    ​	ssh-keygen.exe -t rea -C "{EmailAddress}"
 
-5. 在GitHub中配置SSH秘钥
+5. ## 在GitHub中配置SSH秘钥
 
    打开GitHub配置网页以新增SSH秘钥
 
