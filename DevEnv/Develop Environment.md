@@ -81,7 +81,7 @@
 
 7. 安装C开发组件
 
-   apt-get install build-essential gdb manpages-dev cmake git libcjson-dev
+   apt-get install build-essential gdb manpages-dev cmake git libcjson-dev python
 
    
 
@@ -91,3 +91,10 @@
 
    code . 使用VSCode打开当前目录（首次使用会自动安装VS Code Server）
 
+   
+
+9. 导入和导出
+
+   导出：wsl --export Ubuntu-18.04 F:\WSL2_Ubuntu18.04.tar
+
+   导入：wsl --import Ubuntu-18.04 F:\\Tmp F:\WSL2_Ubuntu18.04.tar
