@@ -1,0 +1,288 @@
+CURRENT_DIR = $(shell pwd)
+AGENT_ROOT_DIR = ${CURRENT_DIR}/../..
+THIRD_PARTY_DIR = ${AGENT_ROOT_DIR}/open_source
+PLATFORM_DIR = ${AGENT_ROOT_DIR}/platform
+INFRASTRUCTURE_PACKAGE_DIR = /opt/distribute_block/develop/infrastructure
+EDS_PACKAGE_DIR="/opt/distribute_block/develop/edsctrl"
+OAM_U_PACKAGE_DIR="/opt/distribute_block/develop/oam-u/"
+BLOCK_INC_DIR="/opt/distribute_block/develop/block/include"
+PERSISITENCE_INC_DIR="/opt/distribute_block/develop/persistence/c/include"
+DATANET_CORE_INC_DIR := /opt/distribute_block/develop/dfv_datanet/src/core
+DATANET_COMM_INC_DIR := /opt/distribute_block/develop/dfv_datanet/src/comm
+dtfuzz ?= no
+
+
+INC_DIR += ${CURRENT_DIR}/../gtest/include
+INC_DIR += ${CURRENT_DIR}/gmock
+
+INC_DIR += ${CURRENT_DIR}/src/gmock
+
+SECURE_FLAGS = -fstack-protector -Wl,-z,relro -Wl,-z,noexecstack -Wl,--disable-new-dtags,--rpath,'$$ORIGIN/../lib' -fPIC
+
+############################################
+###         configed by user        ########
+############################################
+#CC = gcc -D_LOG_DEBUG -DDSA_DEBUG
+CC = $(CROSS_COMPILE)gcc
+CXX = g++
+CFLAGS = -D DSA_INFO -O0 -g0 -Wall -fno-common  -fno-omit-frame-pointer -fno-strict-aliasing -std=gnu99 -lpthread -D_GNU_SOURCE -DPREFETCH -lm --param ssp-buffer-size=4 -Wfloat-equal -fPIC -ftrapv
+CFLAGS += $(SECURE_FLAGS)
+CFLAGS += $(EXTEND_FLAGS)
+CFLAGS += $(SHM_FLAGS)
+CFLAGS += -DLLT
+ifeq ($(asan),yes)
+    ASAN_CFLAGS = -fsanitize=address -fno-omit-frame-pointer -O1
+    CFLAGS += $(ASAN_CFLAGS)
+endif
+CXXFLAGS = $(CFLAGS) #--std=c++11
+CXXFLAGS += -D_GLIBCXX_USE_CXX11_ABI=0
+LDFLAGS =  ${PLATFORM_DIR}/KMC/lib/libfsbKmcTool.a
+LDFLAGS += ${PLATFORM_DIR}/KMC/lib/libfsbKmc.a
+LDFLAGS += ${PLATFORM_DIR}/KMC/lib/libfsbSdp.a
+LDFLAGS += ${INFRASTRUCTURE_PACKAGE_DIR}/lib/open_source/openssl/libssl.a
+LDFLAGS += ${INFRASTRUCTURE_PACKAGE_DIR}/lib/open_source/openssl/libcrypto.a
+LDFLAGS += ${THIRD_PARTY_DIR}/BBOX/lib/libbbox.a
+LDFLAGS += -rdynamic -lcjson -lrt -lm -lpthread -ldl -lsecurec -lz
+LDFLAGS += -lmxml -ldphpuc -lxnetlite -ldpumm_cmm -ldpumm_mm -ldplog -ldpdiagnose -ldptracepoint -ldposax -lsecurec -lpatmatch -losax_util -lrt -lperf_agent -lomm_kmca -lssl -lcrypto
+LDFLAGS += -laio
+DEBUG = -g
+
+GRPC_LDFLAGS = ${AGENT_ROOT_DIR}/src/grpc_adapter/build/libnodeInfoReport.a
+GRPC_LDFLAGS += ${AGENT_ROOT_DIR}/src/net_module/net_subhealth_frame/build/libnetsubhealth.a \
+                -L${INFRASTRUCTURE_PACKAGE_DIR}/lib/open_source/grpc/lib64 \
+				-L${INFRASTRUCTURE_PACKAGE_DIR}/lib/open_source/grpc/lib -lgprotobuf -lpthread -lgrpc++ \
+				-lgrpc -laddress_sorting -lupb -lcares -lz -lgpr -labsl_bad_optional_access \
+				-labsl_str_format_internal -labsl_strings -labsl_strings_internal -labsl_base \
+				-labsl_spinlock_wait -labsl_dynamic_annotations -labsl_int128 -labsl_throw_delegate \
+				-labsl_raw_logging_internal -labsl_log_severity -lssl -lcrypto -pthread -Wl,--no-as-needed \
+                -Wl,--as-needed -ldl -lm -lstdc++
+
+ifeq ($(gencov),yes)
+	COVFLAGS += -fprofile-arcs -ftest-coverage
+	LDFLAGS += -lgcov
+endif
+
+#The third include and lib
+DSW_THIRD_INCLUDE := -I${THIRD_PARTY_DIR}/cJSON/include
+DSW_THIRD_INCLUDE += -I${INFRASTRUCTURE_PACKAGE_DIR}/include/open_source
+DSW_THIRD_INCLUDE += -I${PLATFORM_DIR}/KMC/include
+DSW_THIRD_INCLUDE += -I${THIRD_PARTY_DIR}/../platform/BBOX/include/
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/include/dsware/src/comm/
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/include/smartdata/include
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/include/OceanStorOS/infrastructure/communication/include
+DSW_THIRD_INCLUDE += -I${INFRASTRUCTURE_PACKAGE_DIR}/include/infrastructure/securec
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/test/gtest/include
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/src/utility
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/external_include
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/include/cfg/
+DSW_THIRD_INCLUDE += -I${PERSISITENCE_INC_DIR}
+DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/../FlowLogService/include
+
+ifeq ($(dtfuzz),yes)
+    CFLAGS += -fsanitize-coverage=trace-pc
+    CFLAGS += -g -O0 -ftest-coverage -fprofile-arcs -fdump-rtl-expand
+    CXXFLAGS += -g -O0 -ftest-coverage -fprofile-arcs -fdump-rtl-expand -fpermissive
+    CFLAGS += -DDT_FUZZ
+    DSW_THIRD_INCLUDE += -I${AGENT_ROOT_DIR}/test/dt_fuzz/include
+    LDFLAGS += ${AGENT_ROOT_DIR}/test/dt_fuzz/libSecodefuzz.a
+endif
+
+INFRASTRUCTURE_INC_DIR := /opt/distribute_block/develop/infrastructure/include/infrastructure
+EBS_CTRL_INC_DIR := /opt/distribute_block/develop/edsctrl/include
+OAM-U_INC_DIR := /opt/distribute_block/develop/oam-u/include
+
+DSWARE_SHM_AGENT_SRC := ${AGENT_ROOT_DIR}/src/shm/agent_shm_handle.c
+DSWARE_SHM_AGENT_OBJ := ${AGENT_ROOT_DIR}/src/shm/agent_shm_handle.o
+INC_SHM_DIR += $(DATANET_CORE_INC_DIR)
+INC_SHM_DIR += $(DATANET_COMM_INC_DIR)
+
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/..
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/lvos
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/alarm
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/ccdb
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/cf
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/cm
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/context
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/diagnose
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/djob
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/dlm
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/dntf
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/dpuc
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/dra
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/hpuc
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/iod
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/lock
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/log
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/logzone
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/lwt
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/osax
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/process
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/protobuf/protobuf-c
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/protobuf-c
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/rpc
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/securec
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/tf
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/tlv
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/tracepoint
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/umm
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/upf
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/util
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/zookeeper
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/object
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/product_adapter/unifystorage
+INC_DIR += $(INFRASTRUCTURE_INC_DIR)/../third_party/kmca
+INC_DIR += $(INFRASTRUCTURE_PACKAGE_DIR)/lib/open_source/grpc/include
+
+INC_DIR += $(EBS_CTRL_INC_DIR)
+INC_DIR += $(EBS_CTRL_INC_DIR)/flow
+INC_DIR += $(EBS_CTRL_INC_DIR)/flow/flowtable
+INC_DIR += $(OAM-U_INC_DIR)
+INC_DIR += $(OAM-U_INC_DIR)/om
+INC_DIR += $(OAM-U_INC_DIR)/appconfig
+INC_DIR += $(OAM-U_INC_DIR)/om_msg
+INC_DIR += $(OAM-U_INC_DIR)/om_upgrade
+INC_DIR += $(OAM-U_INC_DIR)/fma
+INC_DIR += $(BLOCK_INC_DIR)
+
+#AGENT_ROOT_DIR=./fsm/agent
+INC_DIR += $(AGENT_ROOT_DIR)/src
+INC_DIR += $(AGENT_ROOT_DIR)/src/cfgclient
+INC_DIR += $(AGENT_ROOT_DIR)/src/cfgclient/cfgclientconfig
+INC_DIR += $(AGENT_ROOT_DIR)/src/cfgclient/cfgobj
+INC_DIR += $(AGENT_ROOT_DIR)/src/cfgclient/nameservice
+INC_DIR += $(AGENT_ROOT_DIR)/src/network_configure
+INC_DIR += $(AGENT_ROOT_DIR)/src/file_config
+INC_DIR += $(AGENT_ROOT_DIR)/external_include/
+INC_DIR += $(AGENT_ROOT_DIR)/include/
+INC_DIR += $(AGENT_ROOT_DIR)/include/cfg/
+INC_DIR += $(AGENT_ROOT_DIR)/include/usr/
+INC_DIR += $(AGENT_ROOT_DIR)/src/grpc_adapter/include
+INC_DIR += $(AGENT_ROOT_DIR)/src/grpc_adapter/src
+INC_DIR += $(AGENT_ROOT_DIR)/test/mockcpp/include
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/net_subhealth_frame/free_arp
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/net_subhealth_frame/one_click
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/net_common_module
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/net_subhealth_frame
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/dev_mon
+INC_DIR += $(AGENT_ROOT_DIR)/src/net_module/network_subhealth
+INC_DIR += $(AGENT_ROOT_DIR)/src/interface
+INC_DIR += $(AGENT_ROOT_DIR)/src/config
+INC_DIR += $(AGENT_ROOT_DIR)/src/device_detect
+INC_DIR += $(AGENT_ROOT_DIR)/src/msg_publish
+INC_DIR += $(AGENT_ROOT_DIR)/test/fsm-agent/src/comm_stub
+INC_DIR += $(AGENT_ROOT_DIR)/test/dt_fuzz
+INC_DIR += $(AGENT_ROOT_DIR)/test/fsm-agent/src/dt_fuzz
+DSW_THIRD_INCLUDE += $(addprefix -I, $(INC_DIR))
+INC_SHM_FLAGS = $(addprefix -I, $(INC_SHM_DIR))
+
+#macro flags
+MACRO_FLAGS += -D__DPAX_LINUX_USR__
+MACRO_FLAGS += -D_GNU_SOURCE -D__KAPI_BASE__=1
+MACRO_FLAGS += -DMACRO_FEATURE_QUOTA_SENSOR
+MACRO_FLAGS += -DMACRO_FEATURE_FILESYSTEM
+MACRO_FLAGS += -DMACRO_DYNAMIC_PARTITION
+MACRO_FLAGS += -D__DPAX_LINUX__
+MACRO_FLAGS += -D__DPAX_THREAD_NOPREEMPT__
+
+INFRASTRUCTURE_LIB_DIR = /opt/distribute_block/develop/infrastructure/lib
+INFRASTRUCTURE_KMCA_LIB_DIR = /opt/distribute_block/develop/infrastructure/lib/third_party/kmca
+EBS_CTRL_LIB_DIR = /opt/distribute_block/develop/edsctrl/lib
+OAM-U_LIB_DIR = /opt/distribute_block/develop/oam-u/lib
+INFRASTRUCTURE_XNET_LIB_DIR = /opt/distribute_block/develop/xnet/lib
+FTDS_LIB_DIR = /opt/distribute_block/develop/ftds/lib
+FDSA_LIB_DIR = /opt/distribute_block/develop/fdsa/lib
+PERSISTENCE_LIB_DIR="/opt/distribute_block/develop/persistence/c/lib"
+DATANET_LIB_DIR = /opt/distribute_block/develop/dfv_datanet/lib
+OPENSSL_LIB_DIR=${INFRASTRUCTURE_LIB_DIR}/open_source/openssl
+
+LDFLAGS +=  -lcomm_rpc -liod -ldposax -llwt -lxmsg -lctrl_public -lscpart_mgr -lfdsa_agent -lmsg_agent -lcmclient -lzookeeper_mt -lprotobuf_k -ldntf -lsnm_agent -ldposen -lftdsclient -lfml -libverbs -lcmclient
+LDPATHFLAGS += -L$(FDSA_LIB_DIR) -L$(INFRASTRUCTURE_LIB_DIR) -L$(INFRASTRUCTURE_XNET_LIB_DIR) -L${INFRASTRUCTURE_KMCA_LIB_DIR} -L$(FTDS_LIB_DIR) -L$(EBS_CTRL_LIB_DIR) -L$(OAM-U_LIB_DIR) -L$(PERSISTENCE_LIB_DIR) -L${OPENSSL_LIB_DIR}
+
+LDFLAGS += ${PERSISTENCE_LIB_DIR}/libplog_client_share_memory.a
+LDFLAGS += ${DATANET_LIB_DIR}/libdatanetshm.a
+LDFLAGS += ${DATANET_LIB_DIR}/libivshmem_client.a
+LDFLAGS += -D_GLIBCXX_USE_CXX11_ABI=0
+
+ifeq ($(CC), gcc)
+NETQOS_LIB_DIR= ${AGENT_ROOT_DIR}/src/tool/X86/netqos
+DSW_THIRD_LIBS= -L${INFRASTRUCTURE_LIB_DIR} -L${THIRD_PARTY_DIR}/cJSON/lib
+else
+CFLAGS += -D__ARM64__
+NETQOS_LIB_DIR= ${AGENT_ROOT_DIR}/src/tool/ARM/netqos
+LDFLAGS += -ldl
+DSW_THIRD_LIBS= -L${THIRD_PARTY_DIR}/CRC/lib -L${INFRASTRUCTURE_LIB_DIR} -L../../../platform/Hi1610ChipSolution/V100R001C00SPC190B011  -lcrc
+endif
+
+#驱动归一，只依赖libnetqos.so
+AGENT_LDFLAGS= ${LDFLAGS} -lacx -lnetqos
+AGENT_LDPATHFLAGS= -L${NETQOS_LIB_DIR} ${LDPATHFLAGS}
+DSWARE_AGENT_DIRS =$(filter-out %shm %tool, $(shell find ${AGENT_ROOT_DIR}/src -maxdepth 5 -type d | grep -v build))
+DSWARE_AGENT_FILES = $(foreach dir,${DSWARE_AGENT_DIRS},$(wildcard $(dir)/*.c))
+DSWARE_AGENT_OBJS = $(patsubst %.c,%.o, ${DSWARE_AGENT_FILES})
+
+ifeq ($(dtfuzz),yes)
+DSWARE_AGENT_TEST_DIR = $(shell find ${AGENT_ROOT_DIR}/test/fsm-agent/src -maxdepth 3 -type d ! -path ${AGENT_ROOT_DIR}/test/fsm-agent/src/tool)
+else
+DSWARE_AGENT_TEST_DIR = $(shell find ${AGENT_ROOT_DIR}/test/fsm-agent/src -maxdepth 3 -type d ! -path ${AGENT_ROOT_DIR}/test/fsm-agent/src/tool ! -path ${AGENT_ROOT_DIR}/test/fsm-agent/src/dt_fuzz)
+endif
+DSWARE_AGENT_TEST_FILES = $(filter-out ${AGENT_ROOT_DIR}/test/fsm-agent/src/gtest_tool_main.cpp, $(foreach dir,${DSWARE_AGENT_TEST_DIR},$(wildcard $(dir)/*.cpp)))
+DSWARE_AGENT_TEST_OBJS = $(patsubst %.cpp,%.o, ${DSWARE_AGENT_TEST_FILES})
+
+DSWARE_AGENT_TOOL_FILES = $(wildcard ${AGENT_ROOT_DIR}/src/tool/*.c)
+DSWARE_AGENT_TOOL_OBJS = $(patsubst %.c,%.o, ${DSWARE_AGENT_TOOL_FILES})
+DSWARE_AGENT_TOOL_TEST_DIR = ${AGENT_ROOT_DIR}/test/fsm-agent/src/tool
+DSWARE_AGENT_TOOL_TEST_FILES = $(foreach dir,${DSWARE_AGENT_TOOL_TEST_DIR},$(wildcard $(dir)/*.cpp))
+DSWARE_AGENT_TOOL_TEST_FILES += ${AGENT_ROOT_DIR}/test/fsm-agent/src/gtest_tool_main.cpp
+DSWARE_AGENT_TOOL_TEST_OBJS = $(patsubst %.cpp,%.o, ${DSWARE_AGENT_TOOL_TEST_FILES})
+
+DSWARE_AGENT_TEST_NAME = dsware_agent_test
+DSWARE_AGENT_TOOL_TEST = dsware_agent_tool_test
+
+############################################
+###         please don't change        #####
+############################################
+all: $(DSWARE_AGENT_TEST_NAME) $(DSWARE_AGENT_TOOL_TEST) publish
+#all: $(DSWARE_AGENT_TOOL_TEST) publish
+$(DSWARE_AGENT_TEST_NAME): $(DSWARE_AGENT_OBJS) $(DSWARE_AGENT_TEST_OBJS)  $(DSWARE_SHM_AGENT_OBJ)
+	$(CXX) -o $(DSWARE_AGENT_TEST_NAME) $(CFLAGS) $(DEBUG) $(MACRO_FLAGS) $(AGENT_LDPATHFLAGS) $(LDPATHFLAGS) $(DSWARE_AGENT_OBJS) $(DSWARE_SHM_AGENT_OBJ) $(DSWARE_AGENT_TEST_OBJS) $(LDFLAGS) $(AGENT_LDFLAGS) $(GRPC_LDFLAGS) $(DSW_THIRD_LIBS) ${CURRENT_DIR}/../mockcpp/libmockcpp.a ${CURRENT_DIR}/../gtest/libgmock.a ${CURRENT_DIR}/../gtest/libgmock_main.a ${CURRENT_DIR}/../gtest/libgtest.a ${CURRENT_DIR}/../gtest/libgtest_main.a -Wl,--rpath,'${LDPATHFLAGS}' -Wl,-rpath-link=${LDPATHFLAGS}
+
+$(DSWARE_AGENT_TOOL_TEST): $(DSWARE_AGENT_TOOL_OBJS) $(DSWARE_AGENT_TOOL_TEST_OBJS)
+	$(CXX) -o $(DSWARE_AGENT_TOOL_TEST) $(CFLAGS) $(DEBUG) $(MACRO_FLAGS) $(AGENT_LDPATHFLAGS) $(LDPATHFLAGS) $(DSWARE_AGENT_TOOL_OBJS) $(DSWARE_AGENT_TOOL_TEST_OBJS) $(LDFLAGS) $(AGENT_LDFLAGS) $(DSW_THIRD_LIBS) ${CURRENT_DIR}/../mockcpp/libmockcpp.a ${CURRENT_DIR}/../gtest/libgmock.a ${CURRENT_DIR}/../gtest/libgmock_main.a ${CURRENT_DIR}/../gtest/libgtest.a ${CURRENT_DIR}/../gtest/libgtest_main.a -Wl,--rpath,'${LDPATHFLAGS}' -Wl,-rpath-link=${LDPATHFLAGS}
+	
+$(DSWARE_SHM_AGENT_OBJ) : $(DSWARE_SHM_AGENT_SRC)
+	$(CC) -c $(DSW_THIRD_INCLUDE) $(COVFLAGS) $(INC_FLAGS) $(INC_SHM_FLAGS) $(CFLAGS)  $(MACRO_FLAGS) $(DEBUG)  -c $(DSWARE_SHM_AGENT_SRC) -o $(DSWARE_SHM_AGENT_OBJ)
+    
+%.o: %.c
+	$(CC) -c $(DSW_THIRD_INCLUDE) $(COVFLAGS) $(MACRO_FLAGS) $(CFLAGS) $(DEBUG)  -c $< -o $@
+
+%.o: %.cpp
+	$(CXX) -c $(DSW_THIRD_INCLUDE) $(COVFLAGS) $(CXXFLAGS) $(DEBUG) -c $< -o $@
+
+publish:
+	mkdir -p $(CURRENT_DIR)/output/bin
+	mkdir -p $(CURRENT_DIR)/output/lib
+	cp -rf ${THIRD_PARTY_DIR}/cJSON/lib/* $(CURRENT_DIR)/output/lib
+	cp -rf $(INFRASTRUCTURE_PACKAGE_DIR)/lib/* $(CURRENT_DIR)/output/lib
+	cp -rf $(INFRASTRUCTURE_XNET_LIB_DIR)/* $(CURRENT_DIR)/output/lib
+	cp -rf $(FTDS_LIB_DIR)/* $(CURRENT_DIR)/output/lib
+	cp -rf $(FDSA_LIB_DIR)/* $(CURRENT_DIR)/output/lib
+	cp -rf $(INFRASTRUCTURE_KMCA_LIB_DIR)/* $(CURRENT_DIR)/output/lib
+	\cp -rf ${EDS_PACKAGE_DIR}/lib/*          $(CURRENT_DIR)/output/lib
+	\cp -rf ${OAM_U_PACKAGE_DIR}/lib/*        $(CURRENT_DIR)/output/lib
+	\cp -rf ${OPENSSL_LIB_DIR}/*        $(CURRENT_DIR)/output/lib
+	cp -f ${NETQOS_LIB_DIR}/libacx.so   $(CURRENT_DIR)/output/lib
+	cp -f ${NETQOS_LIB_DIR}/libnetqos.so   $(CURRENT_DIR)/output/lib
+	mv $(DSWARE_AGENT_TEST_NAME) $(CURRENT_DIR)/output/bin
+	mv $(DSWARE_AGENT_TOOL_TEST) $(CURRENT_DIR)/output/bin
+
+clean:
+	rm -rf $(CURRENT_DIR)/output
+	find ${AGENT_ROOT_DIR} -name "*.o" -type f -print -exec rm -rf {} \;
+	find ${AGENT_ROOT_DIR} -name "*.gcda" -type f -print -exec rm -rf {} \;
+	find ${AGENT_ROOT_DIR} -name "*.gcno" -type f -print -exec rm -rf {} \;
+	rm -f ${CURRENT_DIR}/*.txt
+	rm -f ${CURRENT_DIR}/*.xml
+	rm -rf html
+
+
